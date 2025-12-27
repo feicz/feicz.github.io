@@ -13,11 +13,12 @@
             margin: 0;
             padding: 0;
             background-color: #020617; /* Slate-950 */
-        }
-        body {
-            font-family: 'Inter', sans-serif;
             color: #f8fafc;
             overflow: hidden;
+            font-family: 'Inter', sans-serif;
+        }
+        .digital-font {
+            font-family: 'JetBrains Mono', monospace;
         }
         #root {
             height: 100%;
@@ -41,43 +42,55 @@
             0%, 100% { opacity: 1; }
             50% { opacity: .5; }
         }
-        /* Error display for debugging */
-        #debug-error {
+        /* 调试控制台 - 仅在报错时显示 */
+        #error-console {
             display: none;
             position: fixed;
-            bottom: 20px;
-            left: 20px;
-            right: 20px;
+            bottom: 0;
+            left: 0;
+            right: 0;
             background: #450a0a;
             color: #fecaca;
             padding: 1rem;
-            border-radius: 8px;
-            border: 1px solid #991b1b;
-            font-family: monospace;
-            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
             z-index: 9999;
-            white-space: pre-wrap;
+            max-height: 30vh;
+            overflow-y: auto;
+            border-top: 2px solid #991b1b;
         }
     </style>
     <script>
-        // Polyfill process for browser environments
+        // 在任何模块加载前注入 Process 环境
         window.process = { 
             env: { 
                 NODE_ENV: 'production',
-                API_KEY: '' // Default empty to prevent SDK crash
+                API_KEY: '' 
             },
-            browser: true
+            browser: true,
+            version: ''
         };
 
-        // Global error handler for debugging deployment issues
-        window.onerror = function(msg, url, lineNo, columnNo, error) {
-            const debugDiv = document.getElementById('debug-error');
-            if (debugDiv) {
-                debugDiv.style.display = 'block';
-                debugDiv.textContent = `Error: ${msg}\nAt: ${url}:${lineNo}:${columnNo}`;
+        // 捕获全局错误并显示在调试控制台
+        window.addEventListener('error', function(event) {
+            const consoleEl = document.getElementById('error-console');
+            if (consoleEl) {
+                consoleEl.style.display = 'block';
+                const msg = document.createElement('div');
+                msg.textContent = `[Error] ${event.message} at ${event.filename}:${event.lineno}`;
+                consoleEl.appendChild(msg);
             }
-            return false;
-        };
+        });
+
+        window.addEventListener('unhandledrejection', function(event) {
+            const consoleEl = document.getElementById('error-console');
+            if (consoleEl) {
+                consoleEl.style.display = 'block';
+                const msg = document.createElement('div');
+                msg.textContent = `[Promise Error] ${event.reason}`;
+                consoleEl.appendChild(msg);
+            }
+        });
     </script>
     <script type="importmap">
 {
@@ -94,10 +107,12 @@
 </head>
 <body>
     <div id="root"></div>
-    <div id="debug-error"></div>
-    <!-- Entry Point -->
-    <script type="module" src="index.tsx"></script>
-    <!-- Runner -->
+    <div id="error-console"></div>
+    
+    <!-- 入口文件路径使用相对路径，适配 GitHub Pages 二级目录 -->
+    <script type="module" src="./index.tsx"></script>
+    
+    <!-- 使用 esm.sh/run 作为浏览器端运行时 transpiler -->
     <script type="module" src="https://esm.sh/run"></script>
 </body>
 </html>

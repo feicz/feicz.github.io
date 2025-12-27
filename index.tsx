@@ -2,38 +2,45 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 
-// Start identifying startup sequence
-console.group("ShowCapno Pro: Initializing");
-console.log("Process ENV:", (window as any).process?.env);
+/**
+ * ShowCapno Pro Entry Point
+ * -------------------------
+ * 负责在浏览器环境中启动 React 应用。
+ */
 
-const rootElement = document.getElementById('root');
-
-if (!rootElement) {
-  console.error("Fatal: Mount target '#root' not found.");
-  console.groupEnd();
-  throw new Error("Could not find root element to mount to");
-}
-
-try {
-  console.log("Creating React root...");
-  const root = createRoot(rootElement);
+const startApp = () => {
+  console.group("ShowCapno Pro System Boot");
   
-  console.log("Rendering application...");
-  root.render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>
-  );
-  
-  console.log("Mount sequence complete.");
-} catch (error) {
-  console.error("Fatal Error during application mount:", error);
-  // Display error to user if possible
-  const debugDiv = document.getElementById('debug-error');
-  if (debugDiv) {
-    debugDiv.style.display = 'block';
-    debugDiv.textContent = `Mount Error: ${error instanceof Error ? error.message : String(error)}`;
+  const rootElement = document.getElementById('root');
+
+  if (!rootElement) {
+    console.error("Critical: Could not find mount point '#root'.");
+    console.groupEnd();
+    return;
   }
-} finally {
-  console.groupEnd();
+
+  try {
+    console.log("Initializing React 19 Root...");
+    const root = createRoot(rootElement);
+    
+    console.log("Mounting Application Component...");
+    root.render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    );
+    
+    console.log("System Ready.");
+  } catch (error) {
+    console.error("Initialization Failed:", error);
+  } finally {
+    console.groupEnd();
+  }
+};
+
+// 确保在 DOM 加载完成后启动
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startApp);
+} else {
+  startApp();
 }
