@@ -2,6 +2,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AIAnalysis } from "../types";
 
+// Always initialize GoogleGenAI using a named parameter for apiKey from process.env.API_KEY.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export async function analyzeRespiratoryStatus(
@@ -10,46 +11,64 @@ export async function analyzeRespiratoryStatus(
   fiCO2: number,
   unit: string
 ): Promise<AIAnalysis> {
+  // Use gemini-3-pro-preview for complex reasoning tasks such as clinical assessments.
+  const modelName = 'gemini-3-pro-preview';
+  
   const prompt = `
-    Analyze the following respiratory parameters for a patient in a clinical setting:
+    Analyze the following respiratory parameters:
     - EtCO2: ${etCO2} ${unit}
     - Respiratory Rate (RR): ${rr} bpm
     - FiCO2: ${fiCO2} ${unit}
-
-    Provide a professional clinical assessment and 3 actionable suggestions.
-    Output must be in JSON format matching the schema.
   `;
 
   try {
+    // Generate content using the specified model and structured prompt.
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: modelName,
       contents: prompt,
       config: {
+        // Use systemInstruction to define the persona and formatting rules.
+        systemInstruction: "You are a world-class clinical respiratory specialist. Provide a professional clinical assessment and 3 actionable suggestions based on the provided parameters. The output must be valid JSON.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            assessment: { type: Type.STRING },
+            assessment: { 
+              type: Type.STRING,
+              description: "A detailed clinical assessment of the patient's current respiratory state."
+            },
             suggestions: {
               type: Type.ARRAY,
-              items: { type: Type.STRING }
+              items: { type: Type.STRING },
+              description: "A list of exactly 3 professional recommendations."
             },
             severity: { 
               type: Type.STRING,
-              description: "Must be 'normal', 'caution', or 'critical'"
+              description: "Clinical priority level: 'normal', 'caution', or 'critical'."
             }
           },
-          required: ["assessment", "suggestions", "severity"]
+          required: ["assessment", "suggestions", "severity"],
+          propertyOrdering: ["assessment", "suggestions", "severity"],
         }
       }
     });
 
-    return JSON.parse(response.text);
+    // Directly access the .text property from the GenerateContentResponse object.
+    const responseText = response.text;
+    if (!responseText) {
+      throw new Error("No response text received from Gemini API.");
+    }
+    
+    return JSON.parse(responseText.trim());
   } catch (error) {
     console.error("Gemini Analysis Error:", error);
     return {
-      assessment: "Unable to perform AI analysis at this time. Monitor vital signs manually.",
-      suggestions: ["Check sensor connection", "Ensure patient airway is clear", "Re-calibrate sensor if necessary"],
+      assessment: "Unable to perform AI analysis at this time. Please monitor vital signs manually according to clinical protocol.",
+      suggestions: [
+        "Verify the physical connection and alignment of the CO2 sensor",
+        "Assess patient airway patency and ventilation quality",
+        "Perform a sensor zeroing or calibration procedure"
+      ],
       severity: "caution"
     };
   }

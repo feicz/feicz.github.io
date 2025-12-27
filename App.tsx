@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Unit, SensorData, DeviceState, AlarmThresholds, AIAnalysis } from './types';
 import { CapnoParser, generateMockPacket } from './services/capnoParser';
 import { analyzeRespiratoryStatus } from './services/geminiService';
+import { serialService } from './services/serialService';
 import Waveform from './components/Waveform';
 import StatsCard from './components/StatsCard';
 import Alarms from './components/Alarms';
@@ -26,6 +27,8 @@ const App: React.FC = () => {
     sn: 'SN-CAPT5-8821'
   });
 
+  const [connectionType, setConnectionType] = useState<'NONE' | 'USB' | 'BLE' | 'DEMO'>('DEMO');
+
   // Clinical Data State
   const [currentData, setCurrentData] = useState<SensorData>({
     etCO2: 0,
@@ -41,45 +44,95 @@ const App: React.FC = () => {
   const [aiInsight, setAiInsight] = useState<AIAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [demoMode, setDemoMode] = useState(true);
 
-  // Buffer for waveform animation
+  // Buffers for real-time processing
   const waveformBuffer = useRef<number[]>([]);
+  const byteBuffer = useRef<number[]>([]);
   const syncCounter = useRef(0);
 
-  // Real-time processing loop (100Hz)
+  // Packet processing logic
+  const processIncomingBytes = useCallback((bytes: number[]) => {
+    byteBuffer.current.push(...bytes);
+
+    // Look for packets (Command 80h)
+    // Packet Structure: [0x80] [Length] [Sync] [WB1] [WB2] [Checksum]
+    while (byteBuffer.current.length >= 6) {
+      const startIdx = byteBuffer.current.indexOf(0x80);
+      if (startIdx === -1) {
+        byteBuffer.current = [];
+        break;
+      }
+      
+      // Shift buffer to start of packet
+      if (startIdx > 0) {
+        byteBuffer.current = byteBuffer.current.slice(startIdx);
+      }
+
+      if (byteBuffer.current.length < 6) break;
+
+      const packet = byteBuffer.current.slice(0, 6);
+      if (CapnoParser.verifyChecksum(packet)) {
+        const wb1 = packet[3];
+        const wb2 = packet[4];
+        const co2Value = CapnoParser.decodeCO2Value(wb1, wb2);
+        
+        waveformBuffer.current.push(co2Value);
+        if (waveformBuffer.current.length > 500) {
+          waveformBuffer.current.shift();
+        }
+
+        // Periodic stats update
+        syncCounter.current++;
+        if (syncCounter.current % 100 === 0) {
+          const slice = waveformBuffer.current.slice(-100);
+          setCurrentData(prev => ({
+            ...prev,
+            etCO2: Math.max(...slice),
+            fiCO2: Math.min(...slice),
+            rr: 12 + Math.floor(Math.random() * 2), // Mocking RR for now as DPI packets are separate
+            timestamp: Date.now()
+          }));
+        }
+        
+        byteBuffer.current = byteBuffer.current.slice(6);
+      } else {
+        // Corrupt packet, skip start byte and retry
+        byteBuffer.current = byteBuffer.current.slice(1);
+      }
+    }
+  }, []);
+
+  // Demo Mode Loop
   useEffect(() => {
-    if (!device.isConnected && !demoMode) return;
+    if (connectionType !== 'DEMO') return;
 
     const interval = setInterval(() => {
-      // Logic for demo or serial stream
       const packet = generateMockPacket(syncCounter.current % 128);
-      syncCounter.current++;
-
-      // In real implementation, this would be triggered by serial/BT events
-      const wb1 = packet[3];
-      const wb2 = packet[4];
-      const co2Value = CapnoParser.decodeCO2Value(wb1, wb2);
-
-      waveformBuffer.current.push(co2Value);
-      if (waveformBuffer.current.length > 500) {
-        waveformBuffer.current.shift();
-      }
-
-      // Update numeric stats every 1 second or based on DPI
-      if (syncCounter.current % 100 === 0) {
-        setCurrentData(prev => ({
-          ...prev,
-          etCO2: Math.max(...waveformBuffer.current.slice(-100)),
-          fiCO2: Math.min(...waveformBuffer.current.slice(-100)),
-          rr: 12 + Math.floor(Math.random() * 2),
-          timestamp: Date.now()
-        }));
-      }
-    }, 10); // 100Hz
+      processIncomingBytes(packet);
+    }, 10);
 
     return () => clearInterval(interval);
-  }, [device.isConnected, demoMode]);
+  }, [connectionType, processIncomingBytes]);
+
+  const handleConnectUSB = async () => {
+    const success = await serialService.requestPort();
+    if (success) {
+      setConnectionType('USB');
+      setDevice(prev => ({ ...prev, isConnected: true }));
+      serialService.connect(processIncomingBytes).catch(() => {
+        setConnectionType('NONE');
+        setDevice(prev => ({ ...prev, isConnected: false }));
+      });
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (connectionType === 'USB') {
+      await serialService.disconnect();
+    }
+    setConnectionType('NONE');
+    setDevice(prev => ({ ...prev, isConnected: false }));
+  };
 
   const handleAIAnalyze = async () => {
     setIsAnalyzing(true);
@@ -104,14 +157,18 @@ const App: React.FC = () => {
           <h1 className="text-xl font-bold tracking-tight">ShowCapno <span className="text-yellow-500">Pro</span></h1>
         </div>
         
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-sm font-medium text-slate-400">
              <i className="fa-solid fa-microchip"></i> {device.sn}
           </div>
-          <div className="flex items-center gap-2">
-            <span className={`w-3 h-3 rounded-full ${device.isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
-            <span className="text-sm font-semibold">{device.isConnected ? 'CONNECTED' : 'OFFLINE'}</span>
+          
+          <div className="flex items-center gap-2 px-3 py-1 bg-slate-800/50 rounded-lg border border-slate-700">
+            <span className={`w-2 h-2 rounded-full ${device.isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+            <span className="text-[10px] font-bold uppercase tracking-widest">
+              {connectionType === 'DEMO' ? 'Demo Mode' : connectionType}
+            </span>
           </div>
+
           <button 
             onClick={() => setIsSettingsOpen(true)}
             className="p-2 text-slate-400 hover:text-white transition-colors"
@@ -119,34 +176,52 @@ const App: React.FC = () => {
           >
             <i className="fa-solid fa-gear text-lg"></i>
           </button>
-          <button 
-            onClick={() => setDevice(p => ({ ...p, isConnected: !p.isConnected }))}
-            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${device.isConnected ? 'bg-slate-800 hover:bg-slate-700' : 'bg-yellow-500 text-slate-950 hover:bg-yellow-400'}`}
-          >
-            {device.isConnected ? 'DISCONNECT' : 'CONNECT BLE'}
-          </button>
+
+          <div className="flex gap-2">
+            {!device.isConnected ? (
+              <>
+                <button 
+                  onClick={handleConnectUSB}
+                  className="px-4 py-1.5 rounded-full text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition-all flex items-center gap-2"
+                >
+                  <i className="fa-solid fa-usb"></i> CONNECT USB
+                </button>
+                <button 
+                  onClick={() => {setConnectionType('DEMO'); setDevice(d => ({...d, isConnected: true}))}}
+                  className="px-4 py-1.5 rounded-full text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
+                >
+                  DEMO
+                </button>
+              </>
+            ) : (
+              <button 
+                onClick={handleDisconnect}
+                className="px-4 py-1.5 rounded-full text-xs font-bold bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white transition-all border border-red-500/30"
+              >
+                DISCONNECT
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
-      {/* Main Content Area: Left Waveform (75%), Right Values (25%) */}
+      {/* Main Content */}
       <main className="flex-1 flex overflow-hidden">
-        {/* Waveform View */}
         <section className="flex-1 relative border-r border-slate-800/50 p-4">
           <div className="absolute top-6 left-8 z-10 flex gap-4">
-            <div className="bg-slate-900/80 px-3 py-1 rounded border border-yellow-500/30">
-              <span className="text-xs text-yellow-500 font-bold uppercase">CO2 Waveform ({unit})</span>
+            <div className="bg-slate-900/80 px-3 py-1 rounded border border-yellow-500/30 backdrop-blur-sm">
+              <span className="text-xs text-yellow-500 font-bold uppercase tracking-tighter">CO2 Real-time Waveform ({unit})</span>
             </div>
           </div>
           
           <Waveform data={waveformBuffer.current} unit={unit} />
           
-          {/* Waveform Controls */}
           <div className="absolute bottom-6 left-8 flex gap-3">
              {Object.values(Unit).map(u => (
                <button 
                 key={u}
                 onClick={() => setUnit(u)}
-                className={`px-3 py-1 rounded-md text-xs font-bold transition-colors ${unit === u ? 'bg-yellow-500 text-slate-950' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                className={`px-3 py-1 rounded-md text-xs font-bold transition-colors ${unit === u ? 'bg-yellow-500 text-slate-950 shadow-lg shadow-yellow-500/20' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                >
                  {u}
                </button>
@@ -154,8 +229,7 @@ const App: React.FC = () => {
           </div>
         </section>
 
-        {/* Numeric Dashboard */}
-        <aside className="w-80 bg-slate-900/30 flex flex-col p-4 gap-4 overflow-y-auto">
+        <aside className="w-80 bg-slate-900/30 flex flex-col p-4 gap-4 overflow-y-auto backdrop-blur-sm">
           <StatsCard 
             label="EtCO2" 
             value={currentData.etCO2} 
@@ -181,12 +255,11 @@ const App: React.FC = () => {
             low={0} 
           />
 
-          {/* AI Clinical Insight Section */}
           <div className="mt-4 flex-1">
             <button 
               onClick={handleAIAnalyze}
-              disabled={isAnalyzing}
-              className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-500/20"
+              disabled={isAnalyzing || !device.isConnected}
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-500/20 border border-indigo-500/30"
             >
               <i className={`fa-solid ${isAnalyzing ? 'fa-spinner fa-spin' : 'fa-wand-magic-sparkles'}`}></i>
               {isAnalyzing ? 'ANALYZING...' : 'GET AI INSIGHT'}
@@ -216,12 +289,11 @@ const App: React.FC = () => {
         </aside>
       </main>
 
-      {/* Footer / Alarms Status */}
       <footer className="h-12 bg-slate-900 border-t border-slate-800 flex items-center px-6 justify-between text-xs font-medium text-slate-500">
         <div className="flex gap-6">
           <div className="flex items-center gap-2">
             <i className="fa-solid fa-clock"></i>
-            <span>Monitoring Active: 02:45:12</span>
+            <span>Monitoring Active</span>
           </div>
           <div className="flex items-center gap-2">
             <i className="fa-solid fa-database"></i>
@@ -237,7 +309,6 @@ const App: React.FC = () => {
         </div>
       </footer>
 
-      {/* Settings Modal */}
       {isSettingsOpen && (
         <SettingsModal 
           thresholds={thresholds} 
