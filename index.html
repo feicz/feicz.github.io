@@ -17,9 +17,6 @@
             overflow: hidden;
             font-family: 'Inter', sans-serif;
         }
-        .digital-font {
-            font-family: 'JetBrains Mono', monospace;
-        }
         #root {
             height: 100%;
             display: flex;
@@ -42,55 +39,47 @@
             0%, 100% { opacity: 1; }
             50% { opacity: .5; }
         }
-        /* 调试控制台 - 仅在报错时显示 */
-        #error-console {
+        #error-overlay {
             display: none;
             position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: #450a0a;
-            color: #fecaca;
-            padding: 1rem;
+            inset: 0;
+            background: rgba(2, 6, 23, 0.95);
+            color: #fca5a5;
+            padding: 2rem;
             font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
+            font-size: 12px;
             z-index: 9999;
-            max-height: 30vh;
-            overflow-y: auto;
-            border-top: 2px solid #991b1b;
+            overflow: auto;
+            border: 4px solid #7f1d1d;
         }
     </style>
     <script>
-        // 在任何模块加载前注入 Process 环境
+        // 1. 立即注入环境变量
         window.process = { 
             env: { 
                 NODE_ENV: 'production',
                 API_KEY: '' 
             },
-            browser: true,
-            version: ''
+            browser: true
         };
 
-        // 捕获全局错误并显示在调试控制台
-        window.addEventListener('error', function(event) {
-            const consoleEl = document.getElementById('error-console');
-            if (consoleEl) {
-                consoleEl.style.display = 'block';
-                const msg = document.createElement('div');
-                msg.textContent = `[Error] ${event.message} at ${event.filename}:${event.lineno}`;
-                consoleEl.appendChild(msg);
+        // 2. 增强型错误捕获
+        function logError(type, error) {
+            const overlay = document.getElementById('error-overlay');
+            if (overlay) {
+                overlay.style.display = 'block';
+                const entry = document.createElement('div');
+                entry.style.marginBottom = '10px';
+                entry.style.borderBottom = '1px solid #450a0a';
+                entry.innerHTML = `<strong>[${type}]</strong> ${error.message || error}<br/>
+                                   <small style="color: #64748b">${error.stack || ''}</small>`;
+                overlay.appendChild(entry);
             }
-        });
+            console.error(`[${type}]`, error);
+        }
 
-        window.addEventListener('unhandledrejection', function(event) {
-            const consoleEl = document.getElementById('error-console');
-            if (consoleEl) {
-                consoleEl.style.display = 'block';
-                const msg = document.createElement('div');
-                msg.textContent = `[Promise Error] ${event.reason}`;
-                consoleEl.appendChild(msg);
-            }
-        });
+        window.onerror = (msg, url, line, col, err) => logError('Runtime Error', err || msg);
+        window.onunhandledrejection = (e) => logError('Promise Rejection', e.reason);
     </script>
     <script type="importmap">
 {
@@ -107,12 +96,13 @@
 </head>
 <body>
     <div id="root"></div>
-    <div id="error-console"></div>
+    <div id="error-overlay">
+        <h2 style="color: #ef4444; font-size: 18px; margin-bottom: 20px;">System Halt - Debug Info:</h2>
+    </div>
     
-    <!-- 入口文件路径使用相对路径，适配 GitHub Pages 二级目录 -->
+    <!-- 确保入口文件加载 -->
     <script type="module" src="./index.tsx"></script>
-    
-    <!-- 使用 esm.sh/run 作为浏览器端运行时 transpiler -->
+    <!-- 启动 esm.sh 运行时 -->
     <script type="module" src="https://esm.sh/run"></script>
 </body>
 </html>
