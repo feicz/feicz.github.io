@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef } from 'react';
-import { Unit } from '../types';
+import { Unit } from '../types.ts';
 
 interface WaveformProps {
   data: number[];
@@ -12,7 +12,6 @@ const Waveform: React.FC<WaveformProps> = ({ data, unit }) => {
   const cursorRef = useRef(0);
 
   useEffect(() => {
-    // Fix: Corrected property access from 'getcurrent' to 'current' for React useRef
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -34,7 +33,7 @@ const Waveform: React.FC<WaveformProps> = ({ data, unit }) => {
       ctx.fillStyle = '#020617'; // Slate-950
       ctx.fillRect(x, 0, sweepWidth, canvas.height);
 
-      // Draw grid (optional, very subtle)
+      // Draw grid
       ctx.strokeStyle = '#1e293b';
       ctx.lineWidth = 0.5;
       if (x % 50 === 0) {
@@ -71,7 +70,6 @@ const Waveform: React.FC<WaveformProps> = ({ data, unit }) => {
     return () => cancelAnimationFrame(animationFrame);
   }, [data, unit]);
 
-  // Handle Resize
   useEffect(() => {
     const handleResize = () => {
       if (canvasRef.current) {

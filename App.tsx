@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Unit, SensorData, DeviceState, AlarmThresholds, AIAnalysis } from './types';
-import { CapnoParser, generateMockPacket } from './services/capnoParser';
-import { analyzeRespiratoryStatus } from './services/geminiService';
-import { serialService } from './services/serialService';
-import Waveform from './components/Waveform';
-import StatsCard from './components/StatsCard';
-import Alarms from './components/Alarms';
-import SettingsModal from './components/SettingsModal';
+import { Unit, SensorData, DeviceState, AlarmThresholds, AIAnalysis } from './types.ts';
+import { CapnoParser, generateMockPacket } from './services/capnoParser.ts';
+import { analyzeRespiratoryStatus } from './services/geminiService.ts';
+import { serialService } from './services/serialService.ts';
+import Waveform from './components/Waveform.tsx';
+import StatsCard from './components/StatsCard.tsx';
+import Alarms from './components/Alarms.tsx';
+import SettingsModal from './components/SettingsModal.tsx';
 
 const DEFAULT_THRESHOLDS: AlarmThresholds = {
   etCO2High: 45,

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { AlarmThresholds } from '../types';
+import { AlarmThresholds } from '../types.ts';
 
 interface SettingsModalProps {
   thresholds: AlarmThresholds;

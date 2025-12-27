@@ -1,9 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { AIAnalysis } from "../types";
-
-// Always initialize GoogleGenAI using a named parameter for apiKey from process.env.API_KEY.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+import { AIAnalysis } from "../types.ts";
 
 export async function analyzeRespiratoryStatus(
   etCO2: number,
@@ -11,6 +8,9 @@ export async function analyzeRespiratoryStatus(
   fiCO2: number,
   unit: string
 ): Promise<AIAnalysis> {
+  // Initialize AI client inside the function to avoid load-time crashes if process.env is not defined
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
   // Use gemini-3-pro-preview for complex reasoning tasks such as clinical assessments.
   const modelName = 'gemini-3-pro-preview';
   
