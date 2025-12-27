@@ -12,7 +12,7 @@
             height: 100%;
             margin: 0;
             padding: 0;
-            background-color: #020617; /* Slate-950 */
+            background-color: #020617;
             color: #f8fafc;
             overflow: hidden;
             font-family: 'Inter', sans-serif;
@@ -68,7 +68,7 @@
         }
     </style>
     <script>
-        // 1. 立即注入全局环境变量
+        // 初始化全局环境
         window.process = { 
             env: { 
                 NODE_ENV: 'production', 
@@ -76,8 +76,8 @@
             }, 
             browser: true 
         };
-
-        // 2. 增强型错误捕获
+        
+        // 增强型错误捕获 UI
         function showFatalError(type, error) {
             const overlay = document.getElementById('error-overlay');
             const loader = document.getElementById('init-loader');
@@ -85,7 +85,7 @@
             if (overlay) {
                 overlay.style.display = 'block';
                 const msg = typeof error === 'string' ? error : (error.message || JSON.stringify(error));
-                const stack = error.stack || 'No stack trace available';
+                const stack = error.stack || 'No detailed stack available';
                 overlay.innerHTML += `
                     <div style="margin-bottom: 20px; padding: 15px; background: #450a0a; border-radius: 8px; border: 1px solid #ef4444;">
                         <strong style="color: #ef4444; font-size: 1.1em;">[${type}]</strong><br/>
@@ -111,29 +111,29 @@
   }
 }
 </script>
-    <!-- 唯一运行时：加载后会自动扫描 type="text/tsx" 的脚本 -->
+    <!-- 核心运行时：处理 TypeScript 转译与模块加载 -->
     <script type="module" src="https://esm.sh/run"></script>
 </head>
 <body>
     <div id="init-loader">
         <div class="loader-text" id="loader-msg">Initializing ShowCapno Pro...</div>
         <div id="debug-log" class="boot-log">
-            <div>Connecting to ESM.sh Transpiler...</div>
+            <div>Checking System Manifest...</div>
         </div>
     </div>
     
     <div id="root"></div>
     
     <div id="error-overlay">
-        <h2 style="color: #ef4444; font-size: 18px; margin-bottom: 20px; border-bottom: 2px solid #7f1d1d; padding-bottom: 10px; display: flex; items-center; gap: 10px;">
+        <h2 style="color: #ef4444; font-size: 18px; margin-bottom: 20px; border-bottom: 2px solid #7f1d1d; padding-bottom: 10px; display: flex; align-items: center; gap: 8px;">
             <i class="fas fa-exclamation-triangle"></i> System Halt - Debug Information
         </h2>
     </div>
-    
+
     <!-- 
-        核心修复：不直接使用 type="module" 引用外部 .tsx
-        而是通过一个内联的 text/tsx 块来 import。
-        这会强制 esm.sh 加载并转换 index.tsx，避开浏览器的原生 MIME 检查。
+        核心修复逻辑：
+        使用 type="text/tsx" 包装入口，esm.sh 会将其视为纯文本内容，
+        使用 fetch() 获取后手动转译，从而完全跳过浏览器的 MIME 类型检查。
     -->
     <script type="text/tsx">
         import './index.tsx';
