@@ -6,57 +6,57 @@ const updateLoader = (msg: string) => {
   const el = document.getElementById('loader-msg');
   const debugEl = document.getElementById('debug-log');
   if (el) el.innerText = msg;
-  if (debugEl) debugEl.innerHTML += `<div>> ${msg}</div>`;
-  console.log(`[Boot]: ${msg}`);
+  if (debugEl) {
+    const entry = document.createElement('div');
+    entry.textContent = `> ${msg}`;
+    debugEl.appendChild(entry);
+  }
+  console.log(`[App Boot]: ${msg}`);
 };
 
-const main = async () => {
+const init = async () => {
   try {
-    updateLoader("Verifying Environment...");
+    updateLoader("DOM Environment Verified");
     
     const container = document.getElementById('root');
     if (!container) {
-        throw new Error("Target #root not found. DOM state: " + document.readyState);
+        throw new Error("Critical: Application mount point #root not found.");
     }
 
-    updateLoader("Loading Application Assets...");
+    updateLoader("Loading Component Tree...");
     
-    // 给 DOM 一点响应时间
-    await new Promise(r => setTimeout(r, 100));
+    // 短暂延迟确保运行时转换完成
+    await new Promise(r => setTimeout(r, 50));
 
-    updateLoader("Initializing React Fiber...");
+    updateLoader("Mounting React Reconciler...");
     const root = createRoot(container);
     
-    updateLoader("Rendering Viewport...");
-    // 移除 StrictMode 以排查初始化挂起问题
+    updateLoader("Starting Main Viewport...");
     root.render(<App />);
 
-    // 给 React 一点时间完成首次渲染
+    // 渲染完成后，平滑移除加载器
     setTimeout(() => {
       const loader = document.getElementById('init-loader');
       if (loader) {
-          loader.style.transition = 'opacity 0.5s ease';
+          loader.style.transition = 'opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
           loader.style.opacity = '0';
-          setTimeout(() => loader.style.display = 'none', 500);
+          setTimeout(() => {
+            loader.style.display = 'none';
+          }, 600);
       }
-      console.log("✅ Application Ready");
-    }, 600);
+      console.log("✅ Bootstrapping finished successfully.");
+    }, 500);
 
   } catch (err: any) {
-    console.error("Critical Boot Error:", err);
-    updateLoader("BOOT ERROR: See Overlay");
+    console.error("Bootstrapping Error:", err);
+    updateLoader("HALTED: System initialization failed.");
     
-    const overlay = document.getElementById('error-overlay');
-    if (overlay) {
-        overlay.style.display = 'block';
-        overlay.innerHTML += `<div style="color: #ef4444; margin-top: 1rem; font-family: monospace;">${err.stack || err.message}</div>`;
+    // 确保错误信息显示在红色层
+    if (window.onerror) {
+        window.onerror(err.message || String(err), "", 0, 0, err);
     }
   }
 };
 
-// 确保在正确的生命周期执行
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', main);
-} else {
-    main();
-}
+// 立即执行初始化
+init();
