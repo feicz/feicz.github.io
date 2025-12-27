@@ -2,6 +2,8 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 
+console.log("[System] Entry point index.tsx started executing.");
+
 const updateLoader = (msg: string) => {
   const el = document.getElementById('loader-msg');
   const debugEl = document.getElementById('debug-log');
@@ -25,7 +27,7 @@ const init = async () => {
 
     updateLoader("Loading Component Tree...");
     
-    // 短暂延迟确保运行时转换完成
+    // Tiny delay to ensure styles and browser context are settled
     await new Promise(r => setTimeout(r, 50));
 
     updateLoader("Mounting React Reconciler...");
@@ -34,7 +36,7 @@ const init = async () => {
     updateLoader("Starting Main Viewport...");
     root.render(<App />);
 
-    // 渲染完成后，平滑移除加载器
+    // Smoothly remove loader after initial render
     setTimeout(() => {
       const loader = document.getElementById('init-loader');
       if (loader) {
@@ -51,12 +53,11 @@ const init = async () => {
     console.error("Bootstrapping Error:", err);
     updateLoader("HALTED: System initialization failed.");
     
-    // 确保错误信息显示在红色层
     if (window.onerror) {
         window.onerror(err.message || String(err), "", 0, 0, err);
     }
   }
 };
 
-// 立即执行初始化
+// Start the app
 init();
