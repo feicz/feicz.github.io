@@ -3,7 +3,6 @@
   "description": "Professional Respiratory Monitoring System for Capnostat 5 sensors, featuring real-time waveform analysis, clinical metrics, and Gemini-powered diagnostic insights.",
   "requestFramePermissions": [
     "bluetooth",
-    "microphone",
-    "serial"
+    "microphone"
   ]
 }
