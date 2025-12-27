@@ -23,12 +23,15 @@
             flex-direction: column;
         }
         #init-loader {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            z-index: 50;
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #020617;
+            z-index: 100;
+            flex-direction: column;
+            gap: 1rem;
         }
         .loader-text {
             color: #475569;
@@ -55,14 +58,28 @@
             overflow: auto;
             border: 4px solid #7f1d1d;
         }
+        .boot-log {
+            font-size: 10px;
+            color: #334155;
+            font-family: 'JetBrains Mono', monospace;
+            margin-top: 1rem;
+        }
     </style>
     <script>
-        // 1. 立即注入环境变量和全局状态
-        window.process = { env: { NODE_ENV: 'production', API_KEY: '' }, browser: true };
+        // 1. 立即注入环境变量
+        window.process = { 
+            env: { 
+                NODE_ENV: 'production', 
+                API_KEY: '' 
+            }, 
+            browser: true 
+        };
 
-        // 2. 增强型错误日志
+        // 2. 错误处理
         function showFatalError(type, error) {
             const overlay = document.getElementById('error-overlay');
+            const loader = document.getElementById('init-loader');
+            if (loader) loader.style.display = 'none';
             if (overlay) {
                 overlay.style.display = 'block';
                 const msg = typeof error === 'string' ? error : (error.message || JSON.stringify(error));
@@ -74,6 +91,7 @@
                     </div>
                 `;
             }
+            console.error(`[${type}]`, error);
         }
         window.onerror = (msg, url, line, col, err) => showFatalError('Runtime', err || msg);
         window.onunhandledrejection = (e) => showFatalError('Async', e.reason);
@@ -90,10 +108,13 @@
   }
 }
 </script>
+    <!-- 核心运行时提前加载 -->
+    <script type="module" src="https://esm.sh/run"></script>
 </head>
 <body>
     <div id="init-loader">
-        <div class="loader-text" id="loader-msg">Initializing System...</div>
+        <div class="loader-text" id="loader-msg">Initializing ShowCapno Pro...</div>
+        <div id="debug-log" class="boot-log"></div>
     </div>
     
     <div id="root"></div>
@@ -104,10 +125,11 @@
         </h2>
     </div>
     
-    <!-- 入口文件 -->
-    <script type="module" src="./index.tsx"></script>
-    
-    <!-- 核心运行时 -->
-    <script type="module" src="https://esm.sh/run"></script>
+    <!-- 
+        关键点：使用 type="text/tsx" 
+        这样浏览器不会原生尝试加载它（避免 MIME 错误），
+        而 esm.sh/run 会接管该标签的加载与转换。
+    -->
+    <script type="text/tsx" src="./index.tsx"></script>
 </body>
 </html>
