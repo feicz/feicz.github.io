@@ -22,18 +22,21 @@
             display: flex;
             flex-direction: column;
         }
-        #root:empty::before {
-            content: 'Initializing ShowCapno Pro...';
+        #init-loader {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 50;
+        }
+        .loader-text {
             color: #475569;
             font-size: 0.75rem;
             font-weight: 700;
             letter-spacing: 0.2em;
             text-transform: uppercase;
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            animation: pulse 2s infinite;
         }
         @keyframes pulse {
             0%, 100% { opacity: 1; }
@@ -43,43 +46,37 @@
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(2, 6, 23, 0.95);
+            background: rgba(2, 6, 23, 0.98);
             color: #fca5a5;
             padding: 2rem;
             font-family: 'JetBrains Mono', monospace;
-            font-size: 12px;
+            font-size: 13px;
             z-index: 9999;
             overflow: auto;
             border: 4px solid #7f1d1d;
         }
     </style>
     <script>
-        // 1. 立即注入环境变量
-        window.process = { 
-            env: { 
-                NODE_ENV: 'production',
-                API_KEY: '' 
-            },
-            browser: true
-        };
+        // 1. 立即注入环境变量和全局状态
+        window.process = { env: { NODE_ENV: 'production', API_KEY: '' }, browser: true };
 
-        // 2. 增强型错误捕获
-        function logError(type, error) {
+        // 2. 增强型错误日志
+        function showFatalError(type, error) {
             const overlay = document.getElementById('error-overlay');
             if (overlay) {
                 overlay.style.display = 'block';
-                const entry = document.createElement('div');
-                entry.style.marginBottom = '10px';
-                entry.style.borderBottom = '1px solid #450a0a';
-                entry.innerHTML = `<strong>[${type}]</strong> ${error.message || error}<br/>
-                                   <small style="color: #64748b">${error.stack || ''}</small>`;
-                overlay.appendChild(entry);
+                const msg = typeof error === 'string' ? error : (error.message || JSON.stringify(error));
+                const stack = error.stack || 'No stack trace available';
+                overlay.innerHTML += `
+                    <div style="margin-bottom: 20px; padding: 10px; background: #450a0a; border-radius: 4px;">
+                        <strong style="color: #ef4444">[${type}]</strong>: ${msg}<br/>
+                        <pre style="margin-top:10px; font-size: 10px; color: #94a3b8; white-space: pre-wrap;">${stack}</pre>
+                    </div>
+                `;
             }
-            console.error(`[${type}]`, error);
         }
-
-        window.onerror = (msg, url, line, col, err) => logError('Runtime Error', err || msg);
-        window.onunhandledrejection = (e) => logError('Promise Rejection', e.reason);
+        window.onerror = (msg, url, line, col, err) => showFatalError('Runtime', err || msg);
+        window.onunhandledrejection = (e) => showFatalError('Async', e.reason);
     </script>
     <script type="importmap">
 {
@@ -95,14 +92,22 @@
 </script>
 </head>
 <body>
-    <div id="root"></div>
-    <div id="error-overlay">
-        <h2 style="color: #ef4444; font-size: 18px; margin-bottom: 20px;">System Halt - Debug Info:</h2>
+    <div id="init-loader">
+        <div class="loader-text" id="loader-msg">Initializing System...</div>
     </div>
     
-    <!-- 确保入口文件加载 -->
+    <div id="root"></div>
+    
+    <div id="error-overlay">
+        <h2 style="color: #ef4444; font-size: 18px; margin-bottom: 20px; border-bottom: 2px solid #7f1d1d; padding-bottom: 10px;">
+            ⚠️ System Halt - Debug Information
+        </h2>
+    </div>
+    
+    <!-- 入口文件 -->
     <script type="module" src="./index.tsx"></script>
-    <!-- 启动 esm.sh 运行时 -->
+    
+    <!-- 核心运行时 -->
     <script type="module" src="https://esm.sh/run"></script>
 </body>
 </html>
