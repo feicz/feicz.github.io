@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { AIAnalysis } from "../types.ts";
 
@@ -8,8 +7,8 @@ export async function analyzeRespiratoryStatus(
   fiCO2: number,
   unit: string
 ): Promise<AIAnalysis> {
-  // Initialize AI client inside the function to avoid load-time crashes if process.env is not defined
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Initialize AI client with a fallback to avoid crash if API_KEY is missing in public deployment
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
   
   // Use gemini-3-pro-preview for complex reasoning tasks such as clinical assessments.
   const modelName = 'gemini-3-pro-preview';
@@ -22,6 +21,10 @@ export async function analyzeRespiratoryStatus(
   `;
 
   try {
+    if (!process.env.API_KEY) {
+      throw new Error("API Key missing. Please configure environment variables.");
+    }
+
     // Generate content using the specified model and structured prompt.
     const response = await ai.models.generateContent({
       model: modelName,
@@ -63,7 +66,7 @@ export async function analyzeRespiratoryStatus(
   } catch (error) {
     console.error("Gemini Analysis Error:", error);
     return {
-      assessment: "Unable to perform AI analysis at this time. Please monitor vital signs manually according to clinical protocol.",
+      assessment: "Unable to perform AI analysis at this time. Please ensure a valid Gemini API Key is configured.",
       suggestions: [
         "Verify the physical connection and alignment of the CO2 sensor",
         "Assess patient airway patency and ventilation quality",
