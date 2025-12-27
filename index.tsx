@@ -2,7 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 
-console.log("[System] Entry point index.tsx started executing.");
+console.log("[System] ShowCapno Pro starting...");
 
 const updateLoader = (msg: string) => {
   const el = document.getElementById('loader-msg');
@@ -18,46 +18,48 @@ const updateLoader = (msg: string) => {
 
 const init = async () => {
   try {
-    updateLoader("DOM Environment Verified");
+    updateLoader("Environment Check Complete");
     
     const container = document.getElementById('root');
     if (!container) {
-        throw new Error("Critical: Application mount point #root not found.");
+        throw new Error("Critical: DOM container #root not found.");
     }
 
-    updateLoader("Loading Component Tree...");
+    updateLoader("Loading Core Components...");
     
-    // Tiny delay to ensure styles and browser context are settled
-    await new Promise(r => setTimeout(r, 50));
+    // Ensure styles are ready
+    await new Promise(r => setTimeout(r, 100));
 
-    updateLoader("Mounting React Reconciler...");
+    updateLoader("Initializing User Interface...");
     const root = createRoot(container);
-    
-    updateLoader("Starting Main Viewport...");
-    root.render(<App />);
+    root.render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    );
 
-    // Smoothly remove loader after initial render
+    // Finalize loading sequence
     setTimeout(() => {
       const loader = document.getElementById('init-loader');
       if (loader) {
-          loader.style.transition = 'opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+          loader.style.transition = 'opacity 0.8s ease-out';
           loader.style.opacity = '0';
           setTimeout(() => {
             loader.style.display = 'none';
-          }, 600);
+          }, 800);
       }
-      console.log("✅ Bootstrapping finished successfully.");
-    }, 500);
+      console.log("✅ ShowCapno Pro is now operational.");
+    }, 800);
 
   } catch (err: any) {
-    console.error("Bootstrapping Error:", err);
-    updateLoader("HALTED: System initialization failed.");
+    console.error("Critical Failure during initialization:", err);
+    updateLoader("SYSTEM HALTED: Boot process failed.");
     
     if (window.onerror) {
-        window.onerror(err.message || String(err), "", 0, 0, err);
+        window.onerror(err.message || String(err), "index.tsx", 0, 0, err);
     }
   }
 };
 
-// Start the app
+// Initiate application boot
 init();

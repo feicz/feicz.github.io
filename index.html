@@ -112,7 +112,7 @@
 </head>
 <body>
     <div id="init-loader">
-        <div class="loader-text" id="loader-msg">Initializing System...</div>
+        <div class="loader-text" id="loader-msg">Initializing ShowCapno Pro...</div>
         <div id="debug-log" class="boot-log"></div>
     </div>
     <div id="root"></div>
@@ -122,8 +122,10 @@
         </h2>
     </div>
 
-    <script type="text/tsx">
-        import './index.tsx';
-    </script>
+    <!-- 
+      Using type="text/tsx" with src allows esm.sh/run to fetch and transpile index.tsx
+      This bypasses the native browser module loader's strict MIME check.
+    -->
+    <script type="text/tsx" src="index.tsx"></script>
 </body>
 </html>
