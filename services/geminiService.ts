@@ -7,8 +7,8 @@ export async function analyzeRespiratoryStatus(
   fiCO2: number,
   unit: string
 ): Promise<AIAnalysis> {
-  // Initialize AI client with a fallback to avoid crash if API_KEY is missing in public deployment
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
+  // Fix: Use the correct initialization pattern with a named parameter as required by the SDK guidelines
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   // Use gemini-3-pro-preview for complex reasoning tasks such as clinical assessments.
   const modelName = 'gemini-3-pro-preview';
@@ -21,10 +21,6 @@ export async function analyzeRespiratoryStatus(
   `;
 
   try {
-    if (!process.env.API_KEY) {
-      throw new Error("API Key missing. Please configure environment variables.");
-    }
-
     // Generate content using the specified model and structured prompt.
     const response = await ai.models.generateContent({
       model: modelName,
@@ -56,7 +52,7 @@ export async function analyzeRespiratoryStatus(
       }
     });
 
-    // Directly access the .text property from the GenerateContentResponse object.
+    // Fix: Access the .text property directly as specified in the GenerateContentResponse documentation
     const responseText = response.text;
     if (!responseText) {
       throw new Error("No response text received from Gemini API.");
