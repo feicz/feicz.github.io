@@ -7,10 +7,24 @@ export async function analyzeRespiratoryStatus(
   fiCO2: number,
   unit: string
 ): Promise<AIAnalysis> {
-  // Fix: Use the correct initialization pattern with a named parameter as required by the SDK guidelines
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Defensive check for API key
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    return {
+      assessment: "AI Analysis is unavailable because no API Key was provided in the environment.",
+      suggestions: [
+        "Check environment configuration for API_KEY",
+        "Verify network connectivity to Google services",
+        "Ensure the respiratory sensor is properly calibrated"
+      ],
+      severity: "caution"
+    };
+  }
+
+  // Initialize AI client inside the function scope
+  const ai = new GoogleGenAI({ apiKey });
   
-  // Use gemini-3-pro-preview for complex reasoning tasks such as clinical assessments.
+  // Use gemini-3-pro-preview for complex reasoning tasks
   const modelName = 'gemini-3-pro-preview';
   
   const prompt = `
@@ -21,12 +35,10 @@ export async function analyzeRespiratoryStatus(
   `;
 
   try {
-    // Generate content using the specified model and structured prompt.
     const response = await ai.models.generateContent({
       model: modelName,
       contents: prompt,
       config: {
-        // Use systemInstruction to define the persona and formatting rules.
         systemInstruction: "You are a world-class clinical respiratory specialist. Provide a professional clinical assessment and 3 actionable suggestions based on the provided parameters. The output must be valid JSON.",
         responseMimeType: "application/json",
         responseSchema: {
@@ -52,7 +64,6 @@ export async function analyzeRespiratoryStatus(
       }
     });
 
-    // Fix: Access the .text property directly as specified in the GenerateContentResponse documentation
     const responseText = response.text;
     if (!responseText) {
       throw new Error("No response text received from Gemini API.");
@@ -62,11 +73,11 @@ export async function analyzeRespiratoryStatus(
   } catch (error) {
     console.error("Gemini Analysis Error:", error);
     return {
-      assessment: "Unable to perform AI analysis at this time. Please ensure a valid Gemini API Key is configured.",
+      assessment: "The clinical analysis service encountered an error. Please review the raw vitals.",
       suggestions: [
-        "Verify the physical connection and alignment of the CO2 sensor",
-        "Assess patient airway patency and ventilation quality",
-        "Perform a sensor zeroing or calibration procedure"
+        "Confirm sensor placement on the patient's airway",
+        "Check for circuit leaks or obstructions",
+        "Manually verify respiration rate and EtCO2 trends"
       ],
       severity: "caution"
     };

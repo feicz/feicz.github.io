@@ -19,19 +19,6 @@
             color: #f8fafc;
             overflow: hidden;
         }
-        .digital-font {
-            font-family: 'JetBrains+Mono', monospace;
-        }
-        canvas {
-            image-rendering: pixelated;
-        }
-        @keyframes pulse-red {
-            0%, 100% { background-color: rgba(220, 38, 38, 0.1); }
-            50% { background-color: rgba(220, 38, 38, 0.4); }
-        }
-        .alarm-critical {
-            animation: pulse-red 1s infinite;
-        }
         #root {
             height: 100%;
             display: flex;
@@ -54,14 +41,42 @@
             0%, 100% { opacity: 1; }
             50% { opacity: .5; }
         }
+        /* Error display for debugging */
+        #debug-error {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: #450a0a;
+            color: #fecaca;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #991b1b;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 9999;
+            white-space: pre-wrap;
+        }
     </style>
     <script>
-        // Polyfill process for browser environments before any modules load
+        // Polyfill process for browser environments
         window.process = { 
             env: { 
-                NODE_ENV: 'production'
+                NODE_ENV: 'production',
+                API_KEY: '' // Default empty to prevent SDK crash
             },
             browser: true
+        };
+
+        // Global error handler for debugging deployment issues
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            const debugDiv = document.getElementById('debug-error');
+            if (debugDiv) {
+                debugDiv.style.display = 'block';
+                debugDiv.textContent = `Error: ${msg}\nAt: ${url}:${lineNo}:${columnNo}`;
+            }
+            return false;
         };
     </script>
     <script type="importmap">
@@ -79,9 +94,10 @@
 </head>
 <body>
     <div id="root"></div>
-    <!-- Entry Point: Required for esm.sh/run to handle transpilation -->
+    <div id="debug-error"></div>
+    <!-- Entry Point -->
     <script type="module" src="index.tsx"></script>
-    <!-- Transpiler Runner -->
+    <!-- Runner -->
     <script type="module" src="https://esm.sh/run"></script>
 </body>
 </html>
